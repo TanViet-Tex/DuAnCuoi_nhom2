@@ -1,62 +1,14 @@
 // src/pages/Cart.tsx
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
-
-interface CartItem {
-  id: string;
-  name: string;
-  brand: string;
-  price: number;
-  imageUrl: string;
-  quantity: number;
-  stock: number;
-}
+import { useCart } from '../contexts/CartContext';
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { cart: cartItems, updateQuantity, removeItem, clearCart, totalItems, totalPrice } = useCart();
 
-  useEffect(() => {
-    const loadCart = () => {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartItems(cart);
-    };
-    loadCart();
-    
-    // Lắng nghe sự kiện storage để cập nhật khi có thay đổi
-    window.addEventListener('storage', loadCart);
-    return () => window.removeEventListener('storage', loadCart);
-  }, []);
-
-  const updateCart = (updatedCart: CartItem[]) => {
-    setCartItems(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-  };
-
-  const updateQuantity = (id: string, newQuantity: number) => {
-    const updatedCart = cartItems.map(item => 
-      item.id === id ? { ...item, quantity: Math.max(1, Math.min(item.stock, newQuantity)) } : item
-    );
-    updateCart(updatedCart);
-  };
-
-  const removeItem = (id: string) => {
-    if (confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
-      const updatedCart = cartItems.filter(item => item.id !== id);
-      updateCart(updatedCart);
-    }
-  };
-
-  const clearCart = () => {
-    if (confirm('Bạn có chắc muốn xóa toàn bộ giỏ hàng?')) {
-      updateCart([]);
-    }
-  };
-
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const shippingFee = totalPrice >= 1000000 ? 0 : 30000;
   const finalTotal = totalPrice + shippingFee;
 

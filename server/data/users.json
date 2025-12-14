@@ -1,0 +1,18 @@
+[
+  {
+    "id": "u_admin",
+    "fullName": "Administrator",
+    "email": "admin@gmail.com",
+    "phone": "",
+    "password": "123456",
+    "role": "admin"
+  },
+  {
+    "id": "u_1699993105",
+    "fullName": "Tan Viet",
+    "email": "tanviet3105@gmail.com",
+    "phone": "",
+    "password": "Tythemen@123",
+    "role": "user"
+  }
+]

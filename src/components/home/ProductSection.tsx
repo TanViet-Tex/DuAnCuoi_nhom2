@@ -1,6 +1,7 @@
 // src/components/home/ProductSection.tsx
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import ProductCard from '../products/ProductCard'; // Import ProductCard từ thư mục products/
 
 interface ProductSectionProps {
@@ -25,9 +26,9 @@ const ProductSection: React.FC<ProductSectionProps> = ({ title, products }) => {
       </div>
       
       <div className="text-center mt-10">
-        <button className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-3 px-10 rounded-full transition duration-300 shadow-md border border-gray-300">
-            Xem tất cả đồng hồ
-        </button>
+        <Link to="/products" className="inline-block bg-white hover:bg-gray-100 text-gray-800 font-bold py-3 px-10 rounded-full transition duration-300 shadow-md border border-gray-300">
+          Xem tất cả đồng hồ
+        </Link>
       </div>
     </section>
   );

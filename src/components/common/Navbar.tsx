@@ -2,24 +2,17 @@ import { Link } from "react-router-dom";
 import { Search, ShoppingCart, User, LogOut } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useEffect, useState } from "react";
+import { useCart } from "../../contexts/CartContext";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
-  const [cartCount, setCartCount] = useState(0);
+  const { totalItems } = useCart();
+  const [cartCount, setCartCount] = useState<number>(totalItems);
 
-  // Load số lượng giỏ hàng + lắng nghe thay đổi
+  // Keep local state in sync with context (so component still renders when context changes)
   useEffect(() => {
-    const updateCartCount = () => {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      const total = cart.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      setCartCount(total);
-    };
-
-    updateCartCount();
-    window.addEventListener("storage", updateCartCount);
-
-    return () => window.removeEventListener("storage", updateCartCount);
-  }, []);
+    setCartCount(totalItems);
+  }, [totalItems]);
 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white/90 backdrop-blur-sm shadow-lg z-50">
@@ -55,6 +48,12 @@ export default function Navbar() {
             <Link to="/products" className="text-gray-700 hover:text-amber-600 transition">
               Sản phẩm
             </Link>
+            {/* Admin link for admin user */}
+            {user && user.email === 'admin@gmail.com' && (
+              <Link to="/admin" className="text-gray-700 hover:text-amber-600 transition">
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Cart + Login/Profile */}

@@ -7,8 +7,25 @@ import ProductCard from '../components/products/ProductCard';
 import { useProducts } from '../hooks/useProducts'; // Import hook đã có sẵn
 
 const ProductsRoute: React.FC = () => {
-  const { products, loading } = useProducts();
-  const productCount = products.length; // Tổng số sản phẩm
+  const { products, loading, filters, setFilters } = useProducts();
+
+  // Apply same filtering logic as Products page
+  const filtered = products.filter((p) => {
+    const brandMatch = filters.brand === 'all' || p.brand === filters.brand;
+    const search = (filters.search || '').toString().toLowerCase();
+    const searchMatch = !search || p.name.toLowerCase().includes(search) || p.brand.toLowerCase().includes(search);
+    let priceMatch = true;
+    if (filters.price === 'under5') priceMatch = p.price < 5_000_000;
+    if (filters.price === '5to10') priceMatch = p.price >= 5_000_000 && p.price <= 10_000_000;
+    if (filters.price === 'above10') priceMatch = p.price > 10_000_000;
+    let genderMatch = true;
+    if (filters.gender && filters.gender !== 'all') {
+      const g = filters.gender.toLowerCase();
+      genderMatch = p.category && p.category.toLowerCase().includes(g);
+    }
+    return brandMatch && priceMatch && genderMatch && searchMatch;
+  });
+  const productCount = filtered.length;
 
   if (loading) {
     // Hiển thị Spinner khi đang tải dữ liệu
@@ -34,7 +51,7 @@ const ProductsRoute: React.FC = () => {
           
           {/* Cột 1: Bộ lọc (Sidebar) */}
           <div className="md:w-1/4">
-            <ProductFilter />
+            <ProductFilter filters={filters} setFilters={setFilters} />
           </div>
 
           {/* Cột 2: Danh sách Sản phẩm */}
@@ -58,7 +75,7 @@ const ProductsRoute: React.FC = () => {
             
             {/* Grid hiển thị Product Card */}
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
+              {filtered.map((product) => (
                 // ProductCard đã được chỉnh sửa để hiển thị ảnh từ API
                 <ProductCard key={product.id} product={product} /> 
               ))}

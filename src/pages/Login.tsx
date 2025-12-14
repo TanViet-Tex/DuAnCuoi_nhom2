@@ -7,12 +7,13 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validation
     if (!email || !password) {
       toast.error('Vui lòng điền đầy đủ thông tin!');
@@ -24,17 +25,25 @@ const Login: React.FC = () => {
       return;
     }
 
-    // Attempt login
-    const success = login(email, password);
-    
-    if (success) {
-      toast.success('Đăng nhập thành công!');
-      // Redirect to home after a short delay
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
-    } else {
-      toast.error('Email hoặc mật khẩu không chính xác!');
+    setLoading(true);
+    try {
+      const success = await login(email, password);
+      if (success) {
+        toast.success('Đăng nhập thành công!');
+        setTimeout(() => {
+          if (email === 'admin@gmail.com') {
+            navigate('/admin');
+          } else {
+            navigate('/');
+          }
+        }, 800);
+      } else {
+        toast.error('Email hoặc mật khẩu không chính xác!');
+      }
+    } catch (err) {
+      toast.error('Lỗi kết nối tới server. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,10 +115,11 @@ const Login: React.FC = () => {
             {/* Sign in Button */}
             <button
               onClick={handleSubmit}
+              disabled={loading}
               style={{ backgroundColor: '#9333ea' }}
-              className="w-full text-white py-3 rounded-lg font-medium hover:opacity-90 transition-all mb-4"
+              className="w-full text-white py-3 rounded-lg font-medium hover:opacity-90 transition-all mb-4 disabled:opacity-60"
             >
-              Sign in
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
 
             {/* Google Sign in */}

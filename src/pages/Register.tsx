@@ -11,6 +11,7 @@ const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -50,7 +51,7 @@ const Register: React.FC = () => {
   const isPasswordStrong = passwordStrength.strength >= 4;
   const isPasswordMatch = confirmPassword.length > 0 && password === confirmPassword;
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     // Validation
     if (!fullName || !email || !phone || !password || !confirmPassword) {
       toast.error('Vui lòng điền đầy đủ thông tin!');
@@ -77,17 +78,21 @@ const Register: React.FC = () => {
       return;
     }
 
-    // Attempt registration
-    const success = register(fullName, email, phone, password);
-
-    if (success) {
-      toast.success('Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-    } else {
-      toast.error('Email đã được sử dụng!');
+    setLoading(true);
+    try {
+      const success = await register(fullName, email, phone, password);
+      if (success) {
+        toast.success('Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        toast.error('Email đã được sử dụng!');
+      }
+    } catch (err) {
+      toast.error('Lỗi kết nối tới server. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -268,10 +273,11 @@ const Register: React.FC = () => {
             {/* Sign up Button */}
             <button
               onClick={handleRegister}
+              disabled={loading}
               style={{ backgroundColor: '#9333ea' }}
-              className="w-full text-white py-3 rounded-lg font-medium hover:opacity-90 transition-all mb-4"
+              className="w-full text-white py-3 rounded-lg font-medium hover:opacity-90 transition-all mb-4 disabled:opacity-60"
             >
-              Sign up
+              {loading ? 'Signing up...' : 'Sign up'}
             </button>
 
             {/* Google Sign up */}

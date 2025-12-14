@@ -1,9 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
+import ChatBox from "./components/chat/ChatBox";
 
 // Pages
 import Home from "./pages/Home";
@@ -17,8 +18,16 @@ import Profile from "./pages/Profile";
 import ProductDetail from "./pages/ProductDetail";
 import OrderSuccess from "./pages/OrderSuccess";
 import Checkout from "./pages/Checkout";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminProducts from "./pages/admin/Products";
+import AdminOrders from "./pages/admin/Orders";
+import AdminUsers from "./pages/admin/Users";
+import AdminStatistics from "./pages/admin/Statistics";
 
 export default function App() {
+  const location = useLocation();
+  const hideFooter = location.pathname.startsWith('/admin');
+
   return (
     <AuthProvider>
       <div className="min-h-screen flex flex-col">
@@ -36,9 +45,14 @@ export default function App() {
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/products" element={<AdminProducts />} />
+            <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/statistics" element={<AdminStatistics />} />
           </Routes>
         </main>
-        <Footer />
+        {!hideFooter && <Footer />}
         
         {/* Toast Container */}
         <ToastContainer
@@ -53,7 +67,9 @@ export default function App() {
           pauseOnHover
           theme="light"
         />
+        {/* Toasts provided by react-toastify (used across the app) */}
       </div>
+      <ChatBox />
     </AuthProvider>
   );
 }

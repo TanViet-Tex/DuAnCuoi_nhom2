@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ChevronDown, Search } from 'lucide-react';
-import { useProducts } from "../../hooks/useProducts";
+import type { Dispatch, SetStateAction } from 'react';
 
 const brands = ['Rolex', 'Atlantic', 'Epos', 'Diamond D', 'Orient', 'Seiko'];
 
@@ -14,8 +14,7 @@ const priceRanges = [
 
 const genders = ['Nam', 'Nữ', 'Unisex'];
 
-export default function ProductFilter() {
-  const { filters, setFilters } = useProducts();
+export default function ProductFilter({ filters, setFilters }: { filters: any; setFilters: Dispatch<SetStateAction<any>> }) {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
@@ -29,7 +28,7 @@ export default function ProductFilter() {
             type="text" 
             placeholder="Nhập tên sản phẩm..."
             value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500"
           />
           <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -47,7 +46,7 @@ export default function ProductFilter() {
               type="radio"
               name="brand"
               checked={filters.brand === "all"}
-              onChange={() => setFilters({ ...filters, brand: "all" })}
+              onChange={() => setFilters({ ...filters, brand: "all", page: 1 })}
             />
             <label className="ml-2 text-sm text-gray-600">Tất cả</label>
           </div>
@@ -58,7 +57,7 @@ export default function ProductFilter() {
                 type="radio"
                 name="brand"
                 checked={filters.brand === brand}
-                onChange={() => setFilters({ ...filters, brand })}
+                onChange={() => setFilters({ ...filters, brand, page: 1 })}
                 className="h-4 w-4"
               />
               <label className="ml-2 text-sm text-gray-600">{brand}</label>
@@ -78,7 +77,7 @@ export default function ProductFilter() {
               type="radio"
               name="price"
               checked={filters.price === "all"}
-              onChange={() => setFilters({ ...filters, price: "all" })}
+              onChange={() => setFilters({ ...filters, price: "all", page: 1 })}
             />
             <label className="ml-2">Tất cả</label>
           </div>
@@ -89,7 +88,7 @@ export default function ProductFilter() {
                 type="radio"
                 name="price"
                 checked={filters.price === range.value}
-                onChange={() => setFilters({ ...filters, price: range.value })}
+                onChange={() => setFilters({ ...filters, price: range.value, page: 1 })}
               />
               <label className="ml-2 text-sm">{range.label}</label>
             </div>
@@ -109,7 +108,7 @@ export default function ProductFilter() {
               type="radio"
               name="gender"
               checked={filters.gender === "all"}
-              onChange={() => setFilters({ ...filters, gender: "all" })}
+              onChange={() => setFilters({ ...filters, gender: "all", page: 1 })}
             />
             <label className="ml-2">Tất cả</label>
           </div>
@@ -120,7 +119,7 @@ export default function ProductFilter() {
                 type="radio"
                 name="gender"
                 checked={filters.gender === g}
-                onChange={() => setFilters({ ...filters, gender: g })}
+                onChange={() => setFilters({ ...filters, gender: g, page: 1 })}
               />
               <label className="ml-2">{g}</label>
             </div>

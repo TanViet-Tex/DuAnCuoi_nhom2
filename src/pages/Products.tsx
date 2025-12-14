@@ -11,15 +11,27 @@ export default function Products() {
 
   // APPLY FILTER
   let filtered = products.filter((p) => {
-    let brandMatch = filters.brand === "all" || p.brand === filters.brand;
+    // Brand
+    const brandMatch = filters.brand === "all" || p.brand === filters.brand;
 
+    // Search
+    const search = (filters.search || '').toString().toLowerCase();
+    const searchMatch = !search || p.name.toLowerCase().includes(search) || p.brand.toLowerCase().includes(search);
+
+    // Price ranges (values come from ProductFilter: under5, 5to10, above10)
     let priceMatch = true;
-    if (filters.price === "under500") priceMatch = p.price < 500;
-    if (filters.price === "500to2000")
-      priceMatch = p.price >= 500 && p.price <= 2000;
-    if (filters.price === "above2000") priceMatch = p.price > 2000;
+    if (filters.price === "under5") priceMatch = p.price < 5_000_000;
+    if (filters.price === "5to10") priceMatch = p.price >= 5_000_000 && p.price <= 10_000_000;
+    if (filters.price === "above10") priceMatch = p.price > 10_000_000;
 
-    return brandMatch && priceMatch;
+    // Gender/category (map filter gender values to product.category)
+    let genderMatch = true;
+    if (filters.gender && filters.gender !== 'all') {
+      const g = filters.gender.toLowerCase();
+      genderMatch = p.category && p.category.toLowerCase().includes(g);
+    }
+
+    return brandMatch && priceMatch && genderMatch && searchMatch;
   });
 
   // APPLY SORT
@@ -75,7 +87,7 @@ export default function Products() {
           
           {/* Bộ lọc */}
           <div className="md:w-1/4">
-            <ProductFilter />
+            <ProductFilter filters={filters} setFilters={setFilters} />
           </div>
 
           {/* Sản phẩm */}

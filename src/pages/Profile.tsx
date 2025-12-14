@@ -1,6 +1,8 @@
 // src/pages/Profile.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-toastify';
 import { User, Lock, MapPin, Package, Camera, Save, Edit2 } from 'lucide-react';
 
 interface UserProfile {
@@ -21,15 +23,44 @@ const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   
   const [profile, setProfile] = useState<UserProfile>({
-    fullName: 'Nguyễn Văn A',
-    email: 'nguyenvana@email.com',
-    phone: '0901234567',
+    fullName: 'Khách hàng',
+    email: '',
+    phone: '',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
     addresses: [
-      { id: '1', label: 'Nhà riêng', address: '123 Nguyễn Huệ, Quận 1, TP.HCM', isDefault: true },
-      { id: '2', label: 'Văn phòng', address: '456 Lê Lợi, Quận 3, TP.HCM', isDefault: false }
+      { id: '1', label: 'Nhà riêng', address: '', isDefault: true }
     ]
   });
+
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Load stored profiles map and populate profile for logged-in user
+    try {
+      const profilesRaw = localStorage.getItem('user_profiles') || '{}';
+      const profiles = JSON.parse(profilesRaw || '{}');
+      if (user && user.email && profiles[user.email]) {
+        const stored = profiles[user.email];
+        setProfile(prev => ({
+          fullName: stored.fullName || prev.fullName,
+          email: stored.email || (user.email || prev.email),
+          phone: stored.phone || prev.phone,
+          avatar: stored.avatar || prev.avatar,
+          addresses: stored.addresses || prev.addresses
+        }));
+        return;
+      }
+
+      // Fallback: if legacy single profile exists, use it
+      const legacy = localStorage.getItem('userProfile');
+      if (legacy) {
+        const lp = JSON.parse(legacy);
+        setProfile(prev => ({ ...prev, ...lp }));
+      }
+    } catch (e) {
+      // ignore parsing errors
+    }
+  }, [user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -49,22 +80,33 @@ const Profile: React.FC = () => {
   };
 
   const handleSaveProfile = () => {
-    localStorage.setItem('userProfile', JSON.stringify(profile));
+    // Save into per-email profiles map if logged in
+    try {
+      if (user && user.email) {
+        const profilesRaw = localStorage.getItem('user_profiles') || '{}';
+        const profiles = JSON.parse(profilesRaw || '{}');
+        profiles[user.email] = { ...profiles[user.email], fullName: profile.fullName, email: profile.email, phone: profile.phone, avatar: profile.avatar, addresses: profile.addresses };
+        localStorage.setItem('user_profiles', JSON.stringify(profiles));
+      } else {
+        // legacy fallback
+        localStorage.setItem('userProfile', JSON.stringify(profile));
+      }
+    } catch (e) {}
     setIsEditing(false);
-    alert('Đã lưu thông tin!');
+    toast.success('Đã lưu thông tin!');
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp!');
+      toast.error('Mật khẩu xác nhận không khớp!');
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      alert('Mật khẩu phải có ít nhất 6 ký tự!');
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự!');
       return;
     }
-    alert('Đã đổi mật khẩu thành công!');
+    toast.success('Đã đổi mật khẩu thành công!');
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
   };
 

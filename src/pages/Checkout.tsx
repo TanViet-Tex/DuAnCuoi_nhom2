@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-toastify';
+import { useCart } from '../contexts/CartContext';
+import { loadOrders, saveOrders } from '../services/admin.service';
 import { CreditCard, Wallet, MapPin, Phone, Mail, User, ShieldCheck } from 'lucide-react';
 
 interface CartItem {
@@ -15,7 +19,8 @@ interface CartItem {
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { user } = useAuth();
+  const { cart: cartItems, clearCart, totalPrice } = useCart();
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [formData, setFormData] = useState({
     fullName: '',
@@ -29,12 +34,10 @@ const Checkout: React.FC = () => {
   });
 
   useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    if (cart.length === 0) {
+    if (!cartItems || cartItems.length === 0) {
       navigate('/cart');
     }
-    setCartItems(cart);
-  }, [navigate]);
+  }, [navigate, cartItems]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -45,37 +48,62 @@ const Checkout: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    // Prevent admin users from creating orders
+    if (user && (user.email === 'admin@gmail.com' || (user as any).role === 'admin')) {
+      toast.error('Tài khoản admin không được phép tạo đơn hàng.');
+      return;
+    }
     // Validate form
     if (!formData.fullName || !formData.phone || !formData.address || !formData.city) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc');
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
     }
 
-    // Create order
+    // Create order (both detailed user order and admin summary)
+    const id = `#ORD-${Date.now()}`;
     const order = {
-      id: `ORD${Date.now()}`,
+      id,
       items: cartItems,
       customer: formData,
       paymentMethod,
       totalAmount: finalTotal,
       orderDate: new Date().toISOString(),
-      status: 'pending'
+      status: 'Chờ xác nhận'
     };
 
-    // Save order
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-    orders.push(order);
-    localStorage.setItem('orders', JSON.stringify(orders));
+    // Save detailed user order (legacy key used by Profile)
+    const userOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+    userOrders.push(order);
+    localStorage.setItem('orders', JSON.stringify(userOrders));
+
+    // Save admin-friendly order summary to admin storage so admin UI can read it
+    try {
+      const adminOrders = loadOrders();
+      const summary = {
+        id,
+        customer: formData.fullName,
+        total: finalTotal,
+        status: 'Chờ xác nhận',
+        date: new Date().toLocaleDateString('vi-VN'),
+        // keep a reference to full order
+        details: order
+      };
+      adminOrders.unshift(summary as any);
+      saveOrders(adminOrders as any);
+    } catch (e) {
+      // fallback: also write into 'admin_orders_v1' key manually
+      const legacy = JSON.parse(localStorage.getItem('admin_orders_v1') || '[]');
+      legacy.unshift({ id, customer: formData.fullName, total: finalTotal, status: 'Chờ xác nhận', date: new Date().toLocaleDateString('vi-VN'), details: order });
+      localStorage.setItem('admin_orders_v1', JSON.stringify(legacy));
+    }
 
     // Clear cart
-    localStorage.removeItem('cart');
+    clearCart();
 
     // Navigate to success page
     navigate('/order-success', { state: { orderId: order.id } });
   };
 
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingFee = totalPrice >= 1000000 ? 0 : 30000;
   const finalTotal = totalPrice + shippingFee;
 

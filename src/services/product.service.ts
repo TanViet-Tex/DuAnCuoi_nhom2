@@ -32,6 +32,14 @@ export const getAllProducts = async (): Promise<Product[]> => {
       { id: 'p10', name: 'Ceramic Chrono', brand: 'Rado', model: 'R900', price: 32000000, description: 'Vỏ và dây bằng Ceramic chống trầy.', features: ['Ceramic Case', 'Chronograph'], stock: 6, category: 'Men' },
       { id: 'p11', name: 'Simple Day/Date', brand: 'Citizen', model: 'C100', price: 4200000, description: 'Hiển thị ngày và thứ cơ bản.', features: ['Eco-Drive', 'Day/Date'], stock: 30, category: 'Unisex' },
       { id: 'p12', name: 'Square Deco', brand: 'Gucci', model: 'G777', price: 18000000, description: 'Mặt vuông phong cách Art Deco.', features: ['Fashion Watch', 'Square Case'], stock: 9, category: 'Women' },
+      { id: 'p13', name: 'Urban Casual', brand: 'Gucci', model: 'F130', price: 3900000, description: 'Phong cách trẻ trung cho đô thị.', features: ['Quartz', 'Leather Strap'], stock: 22, category: 'Unisex' },
+      { id: 'p14', name: 'Elite Skeleton', brand: 'Gucci', model: 'OR88', price: 9200000, description: 'Lộ máy, thiết kế tinh tế.', features: ['Skeleton', 'Automatic'], stock: 6, category: 'Men' },
+      { id: 'p15', name: 'Crystal Shine', brand: 'Seiko', model: 'MK22', price: 7600000, description: 'Đính đá, phù hợp sự kiện.', features: ['Crystal Accent', 'Quartz'], stock: 11, category: 'Women' },
+      { id: 'p16', name: 'Heritage Mechanical', brand: 'Seiko', model: 'H300', price: 13500000, description: 'Đồng hồ cơ truyền thống.', features: ['Mechanical', 'Sapphire'], stock: 5, category: 'Men' },
+      { id: 'p17', name: 'Blackout Minimal', brand: 'Atlantic', model: 'SK01', price: 3100000, description: 'Tối giản, toàn đen.', features: ['Slim', 'Quartz'], stock: 18, category: 'Unisex' },
+      { id: 'p18', name: 'Leather Classic', brand: 'Atlantic', model: 'B420', price: 6800000, description: 'Dây da cổ điển, mặt tròn.', features: ['Analog', 'Leather Strap'], stock: 14, category: 'Men' },
+      { id: 'p19', name: 'Diamond Accent', brand: 'Atlantic', model: 'G101', price: 5400000, description: 'Thiết kế nữ tính, đá trang trí.', features: ['Fashion', 'Crystal'], stock: 10, category: 'Women' },
+      { id: 'p20', name: 'Racer Chrono', brand: 'Diamond D', model: 'TC77', price: 9900000, description: 'Chronograph cho người đam mê tốc độ.', features: ['Chronograph', 'Tachymeter'], stock: 7, category: 'Men' },
     ];
     
     // Giả lập độ trễ mạng
@@ -67,7 +75,7 @@ export const getUnsplashWatchPhotos = async (query: string, count: number = 10):
             }
         });
 
-        console.log("Unsplash API fetched photos successfully:", response.data.results.length);
+        // fetched photos successfully
         return response.data.results as UnsplashPhoto[];
 
     } catch (error) {

@@ -5,6 +5,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Truck, Shield, RotateCcw, Home, ChevronRight, Minus, Plus } from 'lucide-react';
 import type { ProductWithImage } from '../types/product';
 import { useProducts } from '../hooks/useProducts';
+import { useCart } from '../contexts/CartContext';
+import { toast } from 'react-toastify';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,18 +43,19 @@ const ProductDetail: React.FC = () => {
     );
   }
 
+  const { addToCart } = useCart();
+
   const handleAddToCart = () => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const existingItem = cart.find((item: any) => item.id === product.id);
-    
-    if (existingItem) {
-      existingItem.quantity += quantity;
-    } else {
-      cart.push({ ...product, quantity });
-    }
-    
-    localStorage.setItem('cart', JSON.stringify(cart));
-    alert('Đã thêm vào giỏ hàng!');
+    addToCart({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      stock: product.stock,
+    }, quantity);
+
+    toast.success('Đã thêm vào giỏ hàng');
   };
 
   const discountPercentage = product.oldPrice 
