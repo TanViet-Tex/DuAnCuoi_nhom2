@@ -301,12 +301,12 @@ const Checkout: React.FC = () => {
                   </div>
                 </label>
 
-                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" style={{ borderColor: paymentMethod === 'transfer' ? '#ca8a04' : '#e5e7eb' }}>
                   <input 
                     type="radio"
                     name="payment"
-                    value="bank"
-                    checked={paymentMethod === 'bank'}
+                    value="transfer"
+                    checked={paymentMethod === 'transfer'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="w-5 h-5 text-yellow-600"
                   />
@@ -314,7 +314,43 @@ const Checkout: React.FC = () => {
                     <CreditCard size={24} className="text-gray-600" />
                     <div>
                       <p className="font-semibold text-gray-800">Chuyển khoản ngân hàng</p>
-                      <p className="text-sm text-gray-500">Chuyển khoản qua ATM/Internet Banking</p>
+                      <p className="text-sm text-gray-500">ATM/Internet Banking</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" style={{ borderColor: paymentMethod === 'credit_card' ? '#ca8a04' : '#e5e7eb' }}>
+                  <input 
+                    type="radio"
+                    name="payment"
+                    value="credit_card"
+                    checked={paymentMethod === 'credit_card'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-5 h-5 text-yellow-600"
+                  />
+                  <div className="ml-4 flex items-center gap-3">
+                    <CreditCard size={24} className="text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-gray-800">Thẻ tín dụng/Debit</p>
+                      <p className="text-sm text-gray-500">Visa, Mastercard, JCB</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" style={{ borderColor: paymentMethod === 'ewallet' ? '#ca8a04' : '#e5e7eb' }}>
+                  <input 
+                    type="radio"
+                    name="payment"
+                    value="ewallet"
+                    checked={paymentMethod === 'ewallet'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-5 h-5 text-yellow-600"
+                  />
+                  <div className="ml-4 flex items-center gap-3">
+                    <Wallet size={24} className="text-green-600" />
+                    <div>
+                      <p className="font-semibold text-gray-800">Ví điện tử</p>
+                      <p className="text-sm text-gray-500">Momo, Zalopay, VNPAY</p>
                     </div>
                   </div>
                 </label>

@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle, Package, Home, FileText, Truck, MapPin, Phone, AlertCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { CheckCircle, Package, Home, FileText, Truck, MapPin, Phone, AlertCircle, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface OrderItem {
   productId: string;
@@ -24,14 +26,20 @@ interface Order {
   paymentMethod: string;
   createdAt: string;
   updatedAt: string;
+  cancellationReason?: string;
+  cancelledAt?: string;
 }
 
 const OrderSuccess: React.FC = () => {
   const navigate = useNavigate();
   const { orderId } = useParams<{ orderId: string }>();
+  const { user } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -49,12 +57,13 @@ const OrderSuccess: React.FC = () => {
 
         // If orderId in URL, fetch from API
         if (orderId) {
-          const response = await fetch(`http://localhost:4000/api/orders/${orderId}`);
+          const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+          const response = await fetch(`${API}/api/orders/${orderId}`);
           if (!response.ok) {
             throw new Error('Không thể tải thông tin đơn hàng');
           }
           const data = await response.json();
-          setOrder(data.order);
+          setOrder(data.order || data);
         } else {
           setError('Không tìm thấy thông tin đơn hàng');
         }
@@ -67,6 +76,39 @@ const OrderSuccess: React.FC = () => {
 
     fetchOrder();
   }, [orderId]);
+
+  const handleCancelOrder = async () => {
+    if (!order || !user) return;
+
+    try {
+      setCancelling(true);
+      const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API}/api/orders/${order.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          reason: cancelReason || 'User cancelled'
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Không thể hủy đơn hàng');
+      }
+
+      const data = await response.json();
+      setOrder(data.order);
+      setShowCancelModal(false);
+      setCancelReason('');
+      toast.success('Đơn hàng đã được hủy thành công');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Lỗi khi hủy đơn hàng';
+      toast.error(message);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -211,18 +253,82 @@ const OrderSuccess: React.FC = () => {
           </div>
 
           {/* Status Info */}
-          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-6 mb-8">
-            <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+          <div className={`${order.status === 'cancelled' ? 'bg-red-50 border-l-4 border-red-500' : 'bg-blue-50 border-l-4 border-blue-500'} rounded-lg p-6 mb-8`}>
+            <h3 className={`font-bold ${order.status === 'cancelled' ? 'text-red-900' : 'text-blue-900'} mb-3 flex items-center gap-2`}>
               <Truck size={20} />
-              Tiếp theo
+              {order.status === 'cancelled' ? 'Đơn hàng đã bị hủy' : 'Tiếp theo'}
             </h3>
-            <ul className="space-y-2 text-sm text-blue-900">
-              <li>✓ Chúng tôi đã nhận đơn hàng của bạn</li>
-              <li>✓ Đơn hàng sẽ được xử lý trong vòng 24 giờ</li>
-              <li>✓ Thời gian giao hàng dự kiến: 3-5 ngày làm việc</li>
-              <li>✓ Bạn có thể theo dõi đơn hàng trong mục "Đơn hàng của tôi"</li>
-            </ul>
+            {order.status === 'cancelled' ? (
+              <div className="space-y-2 text-sm text-red-900">
+                <p><strong>Lý do hủy:</strong> {order.cancellationReason}</p>
+                <p><strong>Hủy lúc:</strong> {new Date(order.cancelledAt || '').toLocaleString('vi-VN')}</p>
+                <p>Bạn có thể tạo đơn hàng mới bằng cách tiếp tục mua sắm</p>
+              </div>
+            ) : (
+              <ul className="space-y-2 text-sm text-blue-900">
+                <li>✓ Chúng tôi đã nhận đơn hàng của bạn</li>
+                <li>✓ Đơn hàng sẽ được xử lý trong vòng 24 giờ</li>
+                <li>✓ Thời gian giao hàng dự kiến: 3-5 ngày làm việc</li>
+                <li>✓ Bạn có thể theo dõi đơn hàng trong mục "Đơn hàng của tôi"</li>
+              </ul>
+            )}
           </div>
+
+          {/* Cancel Button - Show only if order is pending or processing */}
+          {(order.status === 'pending' || order.status === 'processing') && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
+              <p className="text-sm text-gray-700 mb-4">
+                Bạn có thể hủy đơn hàng này nếu chưa được giao
+              </p>
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300"
+              >
+                <X size={18} />
+                Hủy đơn hàng
+              </button>
+            </div>
+          )}
+
+          {/* Cancel Modal */}
+          {showCancelModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+              <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Hủy đơn hàng</h3>
+                <p className="text-gray-600 mb-4">Bạn chắc chắn muốn hủy đơn hàng này?</p>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Lý do hủy (tùy chọn):
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                    rows={3}
+                    placeholder="Vui lòng cho biết lý do hủy đơn..."
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowCancelModal(false)}
+                    disabled={cancelling}
+                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 rounded-lg transition disabled:opacity-50"
+                  >
+                    Không hủy
+                  </button>
+                  <button
+                    onClick={handleCancelOrder}
+                    disabled={cancelling}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition disabled:opacity-50"
+                  >
+                    {cancelling ? 'Đang hủy...' : 'Xác nhận hủy'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -227,7 +227,7 @@ app.post('/api/orders', (req, res) => {
     status: 'pending',
     shippingAddress,
     phone,
-    paymentMethod: paymentMethod || 'cod',
+    paymentMethod: paymentMethod || 'credit_card',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -250,23 +250,23 @@ app.get('/api/orders/user/:userId', (req, res) => {
   res.json(userOrders);
 });
 
-// API: Lấy chi tiết một đơn hàng (specific route BEFORE general route)
+// API: Lấy tất cả đơn hàng (admin)
+app.get('/api/orders', (req, res) => {
+  const orders = readOrders();
+  res.json(orders);
+});
+
+// API: Lấy chi tiết một đơn hàng
 app.get('/api/orders/:orderId', (req, res) => {
   const { orderId } = req.params;
   const orders = readOrders();
   const order = orders.find(o => o.id === orderId);
   
   if (!order) {
-    return res.status(404).json({ message: 'Order not found', order: null });
+    return res.status(404).json({ message: 'Order not found' });
   }
   
-  res.json({ order });
-});
-
-// API: Lấy tất cả đơn hàng (admin) - GENERAL ROUTE AFTER SPECIFIC
-app.get('/api/orders', (req, res) => {
-  const orders = readOrders();
-  res.json({ orders });
+  res.json(order);
 });
 
 // API: Cập nhật trạng thái đơn hàng (admin)
@@ -290,6 +290,89 @@ app.put('/api/orders/:orderId', (req, res) => {
   writeOrders(orders);
   
   res.json({ message: 'Order updated successfully', order });
+});
+
+// API: Hủy đơn hàng (user)
+app.post('/api/orders/:orderId/cancel', (req, res) => {
+  const { orderId } = req.params;
+  const { userId, reason } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required' });
+  }
+
+  const orders = readOrders();
+  const order = orders.find(o => o.id === orderId);
+  
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+
+  // Verify user owns this order
+  if (order.userId !== userId) {
+    return res.status(403).json({ message: 'Not authorized to cancel this order' });
+  }
+
+  // Only pending/processing orders can be cancelled
+  if (!['pending', 'processing'].includes(order.status)) {
+    return res.status(400).json({ message: `Cannot cancel order with status: ${order.status}` });
+  }
+
+  order.status = 'cancelled';
+  order.cancellationReason = reason || 'User cancelled';
+  order.cancelledAt = new Date().toISOString();
+  order.updatedAt = new Date().toISOString();
+  writeOrders(orders);
+  
+  res.json({ message: 'Order cancelled successfully', order });
+});
+
+// API: Yêu cầu trả hàng (user)
+app.post('/api/orders/:orderId/return', (req, res) => {
+  const { orderId } = req.params;
+  const { userId, reason, photos } = req.body;
+  
+  if (!userId || !reason) {
+    return res.status(400).json({ message: 'User ID and reason are required' });
+  }
+
+  const orders = readOrders();
+  const order = orders.find(o => o.id === orderId);
+  
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+
+  // Verify user owns this order
+  if (order.userId !== userId) {
+    return res.status(403).json({ message: 'Not authorized to request return for this order' });
+  }
+
+  // Only completed orders can be returned
+  if (order.status !== 'completed') {
+    return res.status(400).json({ message: 'Only completed orders can be returned' });
+  }
+
+  if (!order.returnRequest) {
+    order.returnRequest = {
+      id: `return_${Date.now()}`,
+      reason,
+      photos: photos || [],
+      status: 'pending',
+      requestedAt: new Date().toISOString(),
+      notes: ''
+    };
+    order.updatedAt = new Date().toISOString();
+    writeOrders(orders);
+
+    return res.status(201).json({
+      message: 'Return request created successfully',
+      order
+    });
+  }
+
+  // Return request already exists
+  res.status(400).json({ message: 'Return request already exists for this order' });
 });
 
 // Health check
