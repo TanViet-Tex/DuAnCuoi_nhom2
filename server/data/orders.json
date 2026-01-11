@@ -1,0 +1,22 @@
+[
+  {
+    "id": "order_1704984001",
+    "userId": "u_admin",
+    "items": [
+      {
+        "productId": "1",
+        "name": "Rolex Submariner",
+        "price": 9000,
+        "quantity": 1,
+        "image": "https://via.placeholder.com/150"
+      }
+    ],
+    "total": 9000,
+    "status": "completed",
+    "shippingAddress": "123 Main St, City, Country",
+    "phone": "0901234567",
+    "paymentMethod": "credit_card",
+    "createdAt": "2024-01-11T10:00:01Z",
+    "updatedAt": "2024-01-11T10:00:01Z"
+  }
+]

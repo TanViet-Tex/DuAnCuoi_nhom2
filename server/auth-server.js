@@ -20,11 +20,13 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify([
   { id: 'u_admin', fullName: 'Administrator', email: 'admin@gmail.com', phone: '0901234567', password: '123456', role: 'admin' }
 ], null, 2));
+if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2));
 
 function readUsers() {
   try {
@@ -36,6 +38,18 @@ function readUsers() {
 
 function writeUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+function readOrders() {
+  try {
+    return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8'));
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeOrders(orders) {
+  fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
 }
 
 // Tạo JWT token
@@ -182,6 +196,102 @@ app.get('/api/users', (req, res) => {
   res.json(safe);
 });
 
+// ============= ORDERS API =============
+
+// API: Tạo đơn hàng
+app.post('/api/orders', (req, res) => {
+  const { userId, items, total, shippingAddress, phone, paymentMethod } = req.body;
+  
+  // Validation
+  if (!userId || !items || !total || !shippingAddress || !phone) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'Items must be a non-empty array' });
+  }
+
+  // Verify user exists
+  const users = readUsers();
+  const user = users.find(u => u.id === userId);
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  // Tạo order mới
+  const order = {
+    id: `order_${Date.now()}`,
+    userId,
+    items,
+    total,
+    status: 'pending',
+    shippingAddress,
+    phone,
+    paymentMethod: paymentMethod || 'cod',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const orders = readOrders();
+  orders.push(order);
+  writeOrders(orders);
+
+  return res.status(201).json({
+    message: 'Order created successfully',
+    order
+  });
+});
+
+// API: Lấy đơn hàng của user
+app.get('/api/orders/user/:userId', (req, res) => {
+  const { userId } = req.params;
+  const orders = readOrders();
+  const userOrders = orders.filter(o => o.userId === userId);
+  res.json(userOrders);
+});
+
+// API: Lấy chi tiết một đơn hàng (specific route BEFORE general route)
+app.get('/api/orders/:orderId', (req, res) => {
+  const { orderId } = req.params;
+  const orders = readOrders();
+  const order = orders.find(o => o.id === orderId);
+  
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found', order: null });
+  }
+  
+  res.json({ order });
+});
+
+// API: Lấy tất cả đơn hàng (admin) - GENERAL ROUTE AFTER SPECIFIC
+app.get('/api/orders', (req, res) => {
+  const orders = readOrders();
+  res.json({ orders });
+});
+
+// API: Cập nhật trạng thái đơn hàng (admin)
+app.put('/api/orders/:orderId', (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+  
+  if (!status) {
+    return res.status(400).json({ message: 'Status is required' });
+  }
+
+  const orders = readOrders();
+  const order = orders.find(o => o.id === orderId);
+  
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+  
+  order.status = status;
+  order.updatedAt = new Date().toISOString();
+  writeOrders(orders);
+  
+  res.json({ message: 'Order updated successfully', order });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Auth server is running', timestamp: new Date().toISOString() });
@@ -192,6 +302,12 @@ app.listen(port, () => {
   console.log(`\n✅ Auth Server đang chạy tại http://localhost:${port}`);
   console.log(`📝 Đăng ký: POST http://localhost:${port}/api/auth/register`);
   console.log(`🔐 Đăng nhập: POST http://localhost:${port}/api/auth/login`);
-  console.log(`� Google OAuth: POST http://localhost:${port}/api/auth/google`);
-  console.log(`�👥 Danh sách user: GET http://localhost:${port}/api/users\n`);
+  console.log(`🔓 Google OAuth: POST http://localhost:${port}/api/auth/google`);
+  console.log(`👥 Danh sách user: GET http://localhost:${port}/api/users`);
+  console.log(`\n🛒 Orders API:`);
+  console.log(`📦 Tạo đơn: POST http://localhost:${port}/api/orders`);
+  console.log(`📋 Đơn của user: GET http://localhost:${port}/api/orders/user/:userId`);
+  console.log(`📊 Tất cả đơn: GET http://localhost:${port}/api/orders`);
+  console.log(`🔍 Chi tiết đơn: GET http://localhost:${port}/api/orders/:orderId`);
+  console.log(`✏️  Cập nhật đơn: PUT http://localhost:${port}/api/orders/:orderId\n`);
 });

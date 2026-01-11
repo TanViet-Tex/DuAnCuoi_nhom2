@@ -46,65 +46,77 @@ const Checkout: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     // Prevent admin users from creating orders
     if (user && (user.email === 'admin@gmail.com' || (user as any).role === 'admin')) {
       toast.error('Tài khoản admin không được phép tạo đơn hàng.');
       return;
     }
+
     // Validate form
     if (!formData.fullName || !formData.phone || !formData.address || !formData.city) {
       toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
     }
 
-    // Create order (both detailed user order and admin summary)
-    const id = `#ORD-${Date.now()}`;
-    const order = {
-      id,
-      items: cartItems,
-      customer: formData,
-      paymentMethod,
-      totalAmount: finalTotal,
-      orderDate: new Date().toISOString(),
-      status: 'Chờ xác nhận'
-    };
-
-    // Save detailed user order (legacy key used by Profile)
-    const userOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-    userOrders.push(order);
-    localStorage.setItem('orders', JSON.stringify(userOrders));
-
-    // Save admin-friendly order summary to admin storage so admin UI can read it
-    try {
-      const adminOrders = loadOrders();
-      const summary = {
-        id,
-        customer: formData.fullName,
-        total: finalTotal,
-        status: 'Chờ xác nhận',
-        date: new Date().toLocaleDateString('vi-VN'),
-        // keep a reference to full order
-        details: order
-      };
-      adminOrders.unshift(summary as any);
-      saveOrders(adminOrders as any);
-    } catch (e) {
-      // fallback: also write into 'admin_orders_v1' key manually
-      const legacy = JSON.parse(localStorage.getItem('admin_orders_v1') || '[]');
-      legacy.unshift({ id, customer: formData.fullName, total: finalTotal, status: 'Chờ xác nhận', date: new Date().toLocaleDateString('vi-VN'), details: order });
-      localStorage.setItem('admin_orders_v1', JSON.stringify(legacy));
+    if (!user || !user.id) {
+      toast.error('Vui lòng đăng nhập để tiếp tục');
+      return;
     }
 
-    // Clear cart
-    clearCart();
+    try {
+      // Chuẩn bị dữ liệu order
+      const shippingAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`;
+      
+      const orderData = {
+        userId: user.id,
+        items: cartItems.map(item => ({
+          productId: item.id,
+          name: item.name,
+          brand: item.brand,
+          price: item.price,
+          quantity: item.quantity,
+          imageUrl: item.imageUrl
+        })),
+        total: totalPrice,
+        shippingAddress,
+        phone: formData.phone,
+        paymentMethod: paymentMethod || 'cod'
+      };
 
-    // Show success toast
-    toast.success('Thanh toán thành công! Cảm ơn bạn đã mua hàng.');
+      // Gọi API tạo order
+      const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API}/api/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
 
-    // Navigate to success page
-    navigate('/order-success', { state: { order } });
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.message || 'Lỗi tạo đơn hàng');
+        return;
+      }
+
+      const { order } = await response.json();
+      toast.success('Đơn hàng tạo thành công!');
+
+      // Lưu vào sessionStorage để OrderSuccess page có thể hiển thị
+      sessionStorage.setItem('lastOrder', JSON.stringify(order));
+
+      // Clear cart
+      clearCart();
+
+      // Redirect to success page
+      setTimeout(() => {
+        navigate(`/order-success/${order.id}`);
+      }, 1000);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error('Lỗi kết nối tới server. Vui lòng thử lại sau.');
+    }
   };
 
   const shippingFee = totalPrice >= 1000000 ? 0 : 30000;

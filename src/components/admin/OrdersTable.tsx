@@ -1,13 +1,42 @@
 import React from 'react';
-import type { OrderItem } from '../../services/admin.service';
+
+interface OrderItem {
+  id: string;
+  userId: string;
+  items: Array<{ productId: string; name: string; price: number; quantity: number }>;
+  total: number;
+  status: string;
+  shippingAddress: string;
+  phone: string;
+  paymentMethod: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const cls =
-    status === 'Đã giao' ? 'bg-green-600' : status === 'Hoàn thành' ? 'bg-blue-600' : status === 'Đang xử lý' ? 'bg-yellow-600' : 'bg-red-600';
-  return <span className={`${cls} text-black text-xs px-2 py-1 rounded-full`}>{status}</span>;
+  const badgeClass =
+    status === 'completed' ? 'bg-green-600' :
+    status === 'processing' ? 'bg-yellow-600' :
+    status === 'pending' ? 'bg-blue-600' :
+    status === 'cancelled' ? 'bg-red-600' :
+    'bg-gray-600';
+    
+  const statusLabel =
+    status === 'completed' ? 'Hoàn thành' :
+    status === 'processing' ? 'Đang xử lý' :
+    status === 'pending' ? 'Chờ xử lý' :
+    status === 'cancelled' ? 'Đã hủy' :
+    status;
+
+  return <span className={`${badgeClass} text-white text-xs px-2 py-1 rounded-full`}>{statusLabel}</span>;
 };
 
-export default function OrdersTable({ orders }: { orders: OrderItem[] }) {
+interface OrdersTableProps {
+  orders: OrderItem[];
+  onStatusChange?: (orderId: string, newStatus: string) => void;
+}
+
+export default function OrdersTable({ orders, onStatusChange }: OrdersTableProps) {
   return (
     <div className="bg-gray-800 rounded-xl p-4">
       <h3 className="text-lg font-semibold mb-3">Đơn hàng gần đây</h3>
@@ -23,13 +52,15 @@ export default function OrdersTable({ orders }: { orders: OrderItem[] }) {
             </tr>
           </thead>
           <tbody className="text-gray-200">
-            {orders.map((o) => (
-              <tr key={o.id} className="border-t border-gray-700">
-                <td className="py-3">{o.id}</td>
-                <td className="py-3">{o.customer}</td>
-                <td className="py-3">{o.date}</td>
-                <td className="py-3"><StatusBadge status={o.status} /></td>
-                <td className="py-3 text-right">{o.total.toLocaleString('vi-VN')}₫</td>
+            {orders.map((order) => (
+              <tr key={order.id} className="border-t border-gray-700 hover:bg-gray-700 transition">
+                <td className="py-3 text-xs font-mono">{order.id.substring(6)}</td>
+                <td className="py-3 text-xs">{order.phone}</td>
+                <td className="py-3 text-xs">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</td>
+                <td className="py-3">
+                  <StatusBadge status={order.status} />
+                </td>
+                <td className="py-3 text-right font-semibold">{order.total.toLocaleString('vi-VN')} VNĐ</td>
               </tr>
             ))}
           </tbody>
