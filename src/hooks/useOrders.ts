@@ -1,6 +1,6 @@
 // src/hooks/useOrders.ts
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getAllOrders, getUserOrders, Order } from '../services/order.service';
 
 interface UseOrdersOptions {
@@ -45,7 +45,7 @@ export function useOrders(options?: UseOrdersOptions): UseOrdersResult {
   }, [options?.userId]);
 
   // Auto-fetch on mount and when userId changes
-  React.useEffect(() => {
+  useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
