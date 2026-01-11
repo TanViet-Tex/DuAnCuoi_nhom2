@@ -6,12 +6,15 @@ import { ShoppingCart, Heart, Truck, Shield, RotateCcw, Home, ChevronRight, Minu
 import type { ProductWithImage } from '../types/product';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../contexts/CartContext';
+import { useWishlist } from '../contexts/WishlistContext';
 import { toast } from 'react-toastify';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { products, loading } = useProducts();
+  const { addToCart } = useCart();
+  const { toggleWishlist, isWishlisted } = useWishlist();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
@@ -43,7 +46,7 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const { addToCart } = useCart();
+  const wishlisted = isWishlisted(product.id);
 
   const handleAddToCart = () => {
     addToCart({
@@ -190,9 +193,19 @@ const ProductDetail: React.FC = () => {
                 <ShoppingCart size={20} />
                 Thêm vào giỏ hàng
               </button>
-              <button className="border-2 border-yellow-600 text-yellow-600 hover:bg-yellow-50 font-bold py-4 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
-                <Heart size={20} />
-                Yêu thích
+              <button 
+                onClick={() => {
+                  toggleWishlist(product);
+                  toast.success(wishlisted ? 'Đã xóa khỏi yêu thích' : 'Đã thêm vào yêu thích');
+                }}
+                className={`flex-1 font-bold py-4 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                  wishlisted
+                    ? 'bg-red-500 hover:bg-red-600 text-red-500 '
+                    : 'border-2 border-gray-300 text-gray-700 hover:border-red-500 hover:text-red-500'
+                }`}
+              >
+                <Heart size={20} fill={wishlisted ? 'currentColor' : 'none'} />
+                {wishlisted ? 'Đã yêu thích' : 'Yêu thích'}
               </button>
             </div>
 

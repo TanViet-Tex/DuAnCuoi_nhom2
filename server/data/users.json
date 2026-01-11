@@ -14,5 +14,21 @@
     "phone": "",
     "password": "Tythemen@123",
     "role": "user"
+  },
+  {
+    "id": "u_1768127232112",
+    "fullName": "vietviet",
+    "email": "tanviet123@gmail.com",
+    "phone": "0396340034",
+    "password": "123123@123123",
+    "role": "user"
+  },
+  {
+    "id": "u_1768127280655",
+    "fullName": "vietviet",
+    "email": "tanviet1@gmail.com",
+    "phone": "0396340034",
+    "password": "123123@123123",
+    "role": "user"
   }
 ]

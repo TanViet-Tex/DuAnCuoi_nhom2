@@ -49,7 +49,7 @@ export default function ProductsPage() {
       <h1 className="text-2xl font-bold mb-4">Quản lý Sản phẩm</h1>
 
       <div className="mb-4 flex gap-2">
-        <button onClick={startAdd} className="px-4 py-2 bg-amber-500 text-white rounded">Thêm sản phẩm</button>
+        <button onClick={startAdd} className="px-4 py-2 bg-amber-500 text-black rounded">Thêm sản phẩm</button>
       </div>
 
       <div className="bg-gray-800 rounded-xl p-4 mb-6">
@@ -75,8 +75,8 @@ export default function ProductsPage() {
                   <td className="py-3">{p.stock}</td>
                   <td className="py-3">{p.status}</td>
                   <td className="py-3">
-                    <button onClick={() => startEdit(p)} className="px-3 py-1 bg-blue-600 rounded mr-2">Sửa</button>
-                    <button onClick={() => remove(p.id)} className="px-3 py-1 bg-red-600 rounded">Xóa</button>
+                    <button onClick={() => startEdit(p)} className="px-3 text-black py-1 bg-blue-600 rounded mr-2">Sửa</button>
+                    <button onClick={() => remove(p.id)} className="px-3 text-black py-1 bg-red-600 rounded">Xóa</button>
                   </td>
                 </tr>
               ))}
@@ -98,7 +98,7 @@ export default function ProductsPage() {
           </select>
         </div>
         <div className="mt-3">
-          <button onClick={save} className="px-4 py-2 bg-amber-500 rounded text-white">Lưu</button>
+          <button onClick={save} className="px-4 py-2 bg-amber-500 rounded text-black">Lưu</button>
         </div>
       </div>
     </AdminLayout>

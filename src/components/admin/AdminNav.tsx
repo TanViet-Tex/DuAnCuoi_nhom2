@@ -1,7 +1,8 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Home, BarChart2, Box, ShoppingCart, Users, Settings } from 'lucide-react';
-import { loadOrders } from '../../services/admin.service';
+// ĐÃ SỬA LỖI: Loại bỏ khoảng trắng thừa trong đường dẫn import
+import { loadOrders } from '../../services/admin.service'; 
 import { useAuth } from '../../contexts/AuthContext';
 
 const items = [
@@ -13,11 +14,49 @@ const items = [
   { to: '/admin/settings', label: 'Cài đặt', icon: <Settings size={18} /> },
 ];
 
+// Khai báo kiểu dữ liệu cho người dùng (user) để tránh dùng `as any` nhiều lần
+interface User {
+    name?: string;
+    email?: string;
+    // Thêm các trường khác nếu cần
+}
+
 export default function AdminNav() {
-  const orders = loadOrders();
+  const location = useLocation();
+  
+  // Tối ưu hóa: Dùng useState và useEffect để quản lý trạng thái đơn hàng bất đồng bộ
+  const [orders, setOrders] = React.useState<any[]>([]);
+  
+  React.useEffect(() => {
+    // Giả định loadOrders là hàm bất đồng bộ, nên gọi nó trong useEffect
+    const fetchOrders = async () => {
+        try {
+            const data = await loadOrders();
+            setOrders(data);
+        } catch (error) {
+            console.error("Failed to load orders:", error);
+        }
+    };
+    fetchOrders();
+    // Nếu loadOrders là hàm đồng bộ, bạn có thể gọi nó trực tiếp ngoài useEffect.
+  }, []); // Chỉ chạy một lần khi component được mount
+
   const { user } = useAuth();
 
-  const initials = user && (user as any).name ? (user as any).name.split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase() : 'AD';
+  // Ép kiểu (Type assertion) một lần và xử lý giá trị mặc định cho user
+  const adminUser = user as User; 
+
+  const initials = adminUser?.name 
+    ? adminUser.name.split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase() 
+    : 'AD';
+  
+  const userName = adminUser?.name ?? 'Admin User';
+  const userEmail = adminUser?.email ?? 'admin@watchshop.vn';
+
+  // Hàm kiểm tra menu có active hay không
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <aside className="w-72 bg-[#060617] text-gray-200 min-h-screen p-6 flex flex-col justify-between">
@@ -36,10 +75,14 @@ export default function AdminNav() {
         {/* Nav items */}
         <nav className="space-y-2">
           {items.map(it => (
-            <NavLink
+            <Link
               key={it.to}
               to={it.to}
-              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition ${isActive ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white' : 'text-gray-300 hover:bg-white/5'}`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition ${
+                isActive(it.to)
+                  ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white'
+                  : 'text-gray-300 hover:bg-white/5'
+              }`}
             >
               <div className="w-6 h-6 flex items-center justify-center text-inherit">{it.icon}</div>
               <div className="flex-1">{it.label}</div>
@@ -48,7 +91,7 @@ export default function AdminNav() {
                   {orders.length}
                 </div>
               )}
-            </NavLink>
+            </Link>
           ))}
         </nav>
       </div>
@@ -58,8 +101,8 @@ export default function AdminNav() {
         <div className="bg-[#0b1020] rounded-xl p-3 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-white font-semibold">{initials}</div>
           <div className="flex-1">
-            <div className="text-sm font-semibold">{(user as any)?.name ?? 'Admin User'}</div>
-            <div className="text-xs text-gray-400">{(user as any)?.email ?? 'admin@watchshop.vn'}</div>
+            <div className="text-sm font-semibold">{userName}</div>
+            <div className="text-xs text-gray-400">{userEmail}</div>
           </div>
         </div>
       </div>

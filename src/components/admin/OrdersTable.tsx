@@ -4,7 +4,7 @@ import type { OrderItem } from '../../services/admin.service';
 const StatusBadge = ({ status }: { status: string }) => {
   const cls =
     status === 'Đã giao' ? 'bg-green-600' : status === 'Hoàn thành' ? 'bg-blue-600' : status === 'Đang xử lý' ? 'bg-yellow-600' : 'bg-red-600';
-  return <span className={`${cls} text-white text-xs px-2 py-1 rounded-full`}>{status}</span>;
+  return <span className={`${cls} text-black text-xs px-2 py-1 rounded-full`}>{status}</span>;
 };
 
 export default function OrdersTable({ orders }: { orders: OrderItem[] }) {

@@ -7,12 +7,15 @@ interface User {
   password: string;
   id?: string;
   role?: string;
+  avatar?: string;
+  googleId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   register: (fullName: string, email: string, phone: string, password: string) => Promise<boolean>;
+  loginWithGoogle: (idToken: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -156,8 +159,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (e) {}
   };
 
+  // 🔵 Đăng nhập với Google OAuth
+  const loginWithGoogle = async (idToken: string): Promise<boolean> => {
+    const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+    try {
+      const res = await fetch(`${API}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      setUser(data.user);
+      try { sessionStorage.setItem('loggedInUser', JSON.stringify(data.user)); } catch (e) {}
+      if (data.token) try { sessionStorage.setItem('authToken', data.token); } catch (e) {}
+
+      // Persist profile data for Google users
+      try {
+        const profilesRaw = localStorage.getItem('user_profiles') || '{}';
+        const profiles = JSON.parse(profilesRaw || '{}');
+        profiles[data.user.email] = {
+          fullName: data.user.fullName,
+          email: data.user.email,
+          phone: data.user.phone || '',
+          avatar: (data.user as any).avatar || '',
+        };
+        localStorage.setItem('user_profiles', JSON.stringify(profiles));
+      } catch (e) {}
+      return true;
+    } catch (e) {
+      console.error('Google login failed:', e);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

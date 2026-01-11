@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
-import { Search, ShoppingCart, User, LogOut } from "lucide-react";
+import { Search, ShoppingCart, Heart, User, LogOut } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { useCart } from "../../contexts/CartContext";
+import { useWishlist } from "../../contexts/WishlistContext";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
+  const { wishlistCount } = useWishlist();
   const [cartCount, setCartCount] = useState<number>(totalItems);
 
-  // Keep local state in sync with context (so component still renders when context changes)
   useEffect(() => {
     setCartCount(totalItems);
   }, [totalItems]);
@@ -56,8 +57,26 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Cart + Login/Profile */}
+          {/* Cart + Wishlist + Login/Profile */}
           <div className="flex items-center gap-5">
+
+            {/* Wishlist */}
+            <Link
+              to="/wishlist"
+              className="text-gray-700 hover:text-red-600 transition relative"
+              title="Wishlist"
+            >
+              <Heart className="h-6 w-6" />
+
+              {wishlistCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-2 bg-red-600 text-white text-xs rounded-full 
+                  h-4 w-4 flex items-center justify-center font-bold"
+                >
+                  {wishlistCount > 9 ? '9+' : wishlistCount}
+                </span>
+              )}
+            </Link>
 
             {/* Cart */}
             <Link
@@ -66,13 +85,12 @@ export default function Navbar() {
             >
               <ShoppingCart className="h-6 w-6" />
 
-              {/* Hiển thị số lượng */}
               {cartCount > 0 && (
                 <span
                   className="absolute -top-1 -right-2 bg-red-600 text-white text-xs rounded-full 
-                  h-4 w-4 flex items-center justify-center"
+                  h-4 w-4 flex items-center justify-center font-bold"
                 >
-                  {cartCount}
+                  {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
             </Link>

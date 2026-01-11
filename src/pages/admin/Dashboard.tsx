@@ -1,8 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { getStats, getRevenueSeries, getTopProducts, getRecentOrders } from '../../services/admin.service';
-import Statistics from './Statistics';
+import { getStats, getTopProducts, getRecentOrders } from '../../services/admin.service';
 import AdminLayout from '../../components/admin/AdminLayout';
 import OrdersTable from '../../components/admin/OrdersTable';
 import ProductsList from '../../components/admin/ProductsList';
@@ -23,7 +22,6 @@ export default function AdminDashboardPage() {
   }
 
   const stats = getStats();
-  const revenueSeries = getRevenueSeries();
   const products = getTopProducts();
   const orders = getRecentOrders();
 
@@ -43,8 +41,6 @@ export default function AdminDashboardPage() {
         <StatCard title="Khách hàng" value={`${stats.customers}`} sub="Khách hàng hoạt động" />
         <StatCard title="Sản phẩm" value={`${stats.products}`} sub="Các mặt hàng" />
       </section>
-
-      <Statistics revenueSeries={revenueSeries} />
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2">

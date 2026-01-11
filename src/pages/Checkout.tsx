@@ -100,8 +100,11 @@ const Checkout: React.FC = () => {
     // Clear cart
     clearCart();
 
+    // Show success toast
+    toast.success('Thanh toán thành công! Cảm ơn bạn đã mua hàng.');
+
     // Navigate to success page
-    navigate('/order-success', { state: { orderId: order.id } });
+    navigate('/order-success', { state: { order } });
   };
 
   const shippingFee = totalPrice >= 1000000 ? 0 : 30000;

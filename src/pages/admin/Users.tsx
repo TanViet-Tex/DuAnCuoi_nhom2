@@ -42,8 +42,8 @@ export default function UsersPage() {
                 <td className="py-3">{u.role}</td>
                 <td className="py-3">{u.locked ? 'Bị khóa' : 'Hoạt động'}</td>
                 <td className="py-3">
-                  <button onClick={() => toggleRole(u.id)} className="px-3 py-1 bg-blue-600 rounded mr-2">Đổi vai trò</button>
-                  <button onClick={() => toggleLock(u.id)} className="px-3 py-1 bg-red-600 rounded">{u.locked ? 'Mở khóa' : 'Khóa'}</button>
+                  <button onClick={() => toggleRole(u.id)} className="px-3 text-black py-1 bg-blue-600 rounded mr-2">Đổi vai trò</button>
+                  <button onClick={() => toggleLock(u.id)} className="px-3 text-black py-1 bg-red-600 rounded">{u.locked ? 'Mở khóa' : 'Khóa'}</button>
                 </td>
               </tr>
             ))}
