@@ -1,7 +1,7 @@
 // src/hooks/useCreateOrder.ts
 
 import { useState } from 'react';
-import { createOrder, CreateOrderData, Order } from '../services/order.service';
+import { createOrder, type CreateOrderData, type Order } from '../services';
 
 interface UseCreateOrderResult {
   create: (data: CreateOrderData) => Promise<Order>;

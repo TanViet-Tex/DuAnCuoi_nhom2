@@ -407,10 +407,10 @@ const Checkout: React.FC = () => {
 
               <button 
                 type="submit"
-                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl flex items-center justify-center gap-3 transform hover:scale-105"
               >
-                <ShieldCheck size={20} />
-                Đặt hàng
+                <ShieldCheck size={22} />
+                <span className="text-lg">Đặt hàng ngay</span>
               </button>
 
               <div className="mt-6 space-y-2 text-xs text-gray-600 text-center">

@@ -1,7 +1,7 @@
 // src/hooks/useOrders.ts
 
 import { useState, useCallback, useEffect } from 'react';
-import { getAllOrders, getUserOrders, Order } from '../services/order.service';
+import { getAllOrders, getUserOrders, type Order } from '../services';
 
 interface UseOrdersOptions {
   userId?: string; // If provided, fetch user orders instead of all

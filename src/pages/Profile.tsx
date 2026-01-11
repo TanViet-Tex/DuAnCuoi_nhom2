@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrders } from '../hooks/useOrders';
 import { toast } from 'react-toastify';
-import { User, Lock, MapPin, Package, Camera, Save, Edit2 } from 'lucide-react';
+import { User, Lock, MapPin, Package, Camera, Save, Edit2, X, Trash2 } from 'lucide-react';
 
 interface UserProfile {
   fullName: string;
@@ -21,6 +22,9 @@ interface UserProfile {
 const Profile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'info' | 'password' | 'address' | 'orders'>('info');
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedOrderToCancel, setSelectedOrderToCancel] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
   
   const [profile, setProfile] = useState<UserProfile>({
     fullName: 'Khách hàng',
@@ -145,8 +149,43 @@ const Profile: React.FC = () => {
     }
   };
 
-  // Mock orders data
-  const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+  // Get user's orders from backend
+  const { orders, loading: ordersLoading, refetch: refetchOrders } = useOrders(
+    user?.id ? { userId: user.id } : undefined
+  );
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrderToCancel || !user) return;
+
+    try {
+      setIsCancelling(true);
+      const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API}/api/orders/${selectedOrderToCancel}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          reason: cancelReason || 'User cancelled'
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Không thể hủy đơn hàng');
+      }
+
+      toast.success('Đơn hàng đã được hủy thành công');
+      setSelectedOrderToCancel(null);
+      setCancelReason('');
+      // Refetch orders to update the list
+      await refetchOrders();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Lỗi khi hủy đơn hàng';
+      toast.error(message);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <div className="bg-gray-50 pt-20 min-h-screen">
@@ -409,7 +448,11 @@ const Profile: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-800 mb-6">Đơn hàng của tôi</h2>
                   
-                  {orders.length === 0 ? (
+                  {ordersLoading ? (
+                    <div className="text-center py-12">
+                      <p className="text-gray-600">Đang tải đơn hàng...</p>
+                    </div>
+                  ) : orders.length === 0 ? (
                     <div className="text-center py-12">
                       <Package size={60} className="mx-auto text-gray-300 mb-4" />
                       <p className="text-gray-600">Bạn chưa có đơn hàng nào</p>
@@ -422,17 +465,25 @@ const Profile: React.FC = () => {
                             <div>
                               <p className="font-bold text-gray-800">Đơn hàng #{order.id}</p>
                               <p className="text-sm text-gray-500">
-                                {new Date(order.orderDate).toLocaleDateString('vi-VN')}
+                                {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                               </p>
                             </div>
-                            <span className="bg-yellow-100 text-yellow-700 text-sm font-semibold px-3 py-1 rounded">
-                              {order.status === 'pending' ? 'Đang xử lý' : 'Đã giao'}
+                            <span className={`text-sm font-semibold px-3 py-1 rounded ${
+                              order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              order.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                              order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {order.status === 'pending' ? 'Đang xử lý' :
+                               order.status === 'processing' ? 'Đang giao' :
+                               order.status === 'completed' ? 'Đã giao' :
+                               'Đã hủy'}
                             </span>
                           </div>
                           
                           <div className="space-y-2 mb-4">
-                            {order.items.map((item: any) => (
-                              <div key={item.id} className="flex items-center gap-3 text-sm">
+                            {order.items.map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 text-sm">
                                 <img src={item.imageUrl} alt={item.name} className="w-12 h-12 object-cover rounded" />
                                 <span className="flex-1 text-gray-700">{item.name} x{item.quantity}</span>
                                 <span className="font-semibold text-gray-800">
@@ -443,10 +494,21 @@ const Profile: React.FC = () => {
                           </div>
                           
                           <div className="flex justify-between items-center pt-4 border-t">
-                            <span className="text-gray-600">Tổng cộng:</span>
-                            <span className="text-xl font-bold text-red-600">
-                              {order.totalAmount.toLocaleString('vi-VN')} VNĐ
-                            </span>
+                            <div>
+                              <span className="text-gray-600">Tổng cộng:</span>
+                              <span className="text-xl font-bold text-red-600 ml-2">
+                                {order.total.toLocaleString('vi-VN')} VNĐ
+                              </span>
+                            </div>
+                            {(order.status === 'pending' || order.status === 'processing') && (
+                              <button
+                                onClick={() => setSelectedOrderToCancel(order.id)}
+                                className="flex items-center gap-2 border-2 border-red-500 text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg font-semibold transition"
+                              >
+                                <Trash2 size={18} />
+                                Hủy đơn
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -458,6 +520,65 @@ const Profile: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Cancel Order Modal */}
+        {selectedOrderToCancel && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="flex justify-between items-center p-6 border-b">
+                <h3 className="text-lg font-bold text-gray-800">Hủy đơn hàng</h3>
+                <button
+                  onClick={() => {
+                    setSelectedOrderToCancel(null);
+                    setCancelReason('');
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-gray-600">
+                  Bạn có chắc chắn muốn hủy đơn hàng <strong>#{selectedOrderToCancel}</strong>?
+                </p>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Lý do hủy (tùy chọn):
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Nhập lý do hủy đơn hàng..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      setSelectedOrderToCancel(null);
+                      setCancelReason('');
+                    }}
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition"
+                    disabled={isCancelling}
+                  >
+                    Không
+                  </button>
+                  <button
+                    onClick={handleCancelOrder}
+                    disabled={isCancelling}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-black rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCancelling ? 'Đang hủy...' : 'Xác nhận hủy'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
