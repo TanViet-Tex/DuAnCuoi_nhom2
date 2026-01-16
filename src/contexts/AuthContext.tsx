@@ -26,10 +26,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 🟡 Lấy user từ localStorage khi load trang
   useEffect(() => {
-    // Ensure app starts signed-out: clear any session auth on load
+    // Try to restore user from sessionStorage on page load
     try {
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('loggedInUser');
+      const loggedInUserStr = sessionStorage.getItem('loggedInUser');
+      if (loggedInUserStr) {
+        const loggedInUser = JSON.parse(loggedInUserStr);
+        setUser(loggedInUser);
+        return; // If user is in sessionStorage, don't proceed
+      }
     } catch (e) {}
 
     // Seed localStorage users so login works when mock API isn't running

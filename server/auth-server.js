@@ -1,396 +1,389 @@
-import express from 'express';
-import fs from 'fs';
-import path from 'path';
-import cors from 'cors';
-import jwt from 'jsonwebtoken';
-import { fileURLToPath } from 'url';
-import { OAuth2Client } from 'google-auth-library';
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+const mongoose = require('mongoose');
+const { OAuth2Client } = require('google-auth-library');
+const bcrypt = require('bcryptjs');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Secret key for JWT (in production, use environment variable)
+// ===== CONFIG =====
+const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'watch-shop-secret-key-2025';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/watchshop';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
+// ===== MONGODB CONNECTION =====
+mongoose.connect(MONGODB_URI)
+  .then(async () => {
+    console.log('✅ MongoDB connected');
+    
+    // Initialize admin user if not exists
+    try {
+      const adminExists = await User.findOne({ email: 'admin@gmail.com' });
+      if (!adminExists) {
+        const hashedPassword = await bcrypt.hash('123456', 10);
+        const adminUser = new User({
+          fullName: 'Administrator',
+          email: 'admin@gmail.com',
+          phone: '0901234567',
+          password: hashedPassword,
+          role: 'admin'
+        });
+        await adminUser.save();
+        console.log('✅ Admin user created');
+      }
+    } catch (err) {
+      console.error('Error initializing admin user:', err.message);
+    }
+  })
+  .catch(err => console.error('❌ MongoDB error:', err.message));
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify([
-  { id: 'u_admin', fullName: 'Administrator', email: 'admin@gmail.com', phone: '0901234567', password: '123456', role: 'admin' }
-], null, 2));
-if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2));
+// ===== SCHEMAS =====
+const userSchema = new mongoose.Schema({
+  fullName: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  phone: { type: String, default: '' },
+  password: { type: String, default: '' },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  googleId: { type: String, default: '' },
+  avatar: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
 
-function readUsers() {
-  try {
-    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-  } catch (e) {
-    return [];
-  }
-}
+const orderSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  items: [
+    {
+      productId: String,
+      name: String,
+      brand: String,
+      price: Number,
+      quantity: Number,
+      imageUrl: String
+    }
+  ],
+  total: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
+  shippingAddress: { type: String, required: true },
+  phone: { type: String, required: true },
+  paymentMethod: { type: String, default: 'cod' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
 
-function writeUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
+const User = mongoose.model('User', userSchema);
+const Order = mongoose.model('Order', orderSchema);
 
-function readOrders() {
-  try {
-    return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8'));
-  } catch (e) {
-    return [];
-  }
-}
-
-function writeOrders(orders) {
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
-}
-
-// Tạo JWT token
-function generateToken(user) {
-  return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+// ===== HELPERS =====
+const generateToken = (user) =>
+  jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
-}
 
-// API: Đăng ký
-app.post('/api/auth/register', (req, res) => {
-  const { fullName, email, phone, password } = req.body;
-  
-  // Validation
-  if (!email || !password || !fullName) {
-    return res.status(400).json({ message: 'Missing required fields' });
-  }
-
-  const users = readUsers();
-  
-  // Kiểm tra email đã tồn tại
-  if (users.find(u => u.email === email)) {
-    return res.status(409).json({ message: 'Email already exists' });
-  }
-
-  // Tạo user mới
-  const user = { 
-    id: `u_${Date.now()}`, 
-    fullName, 
-    email, 
-    phone: phone || '', 
-    password, 
-    role: 'user' 
+const sanitizeUser = (user) => {
+  const userObj = user.toObject();
+  return {
+    id: userObj._id,
+    fullName: userObj.fullName,
+    email: userObj.email,
+    phone: userObj.phone,
+    role: userObj.role,
+    googleId: userObj.googleId,
+    avatar: userObj.avatar,
+    createdAt: userObj.createdAt
   };
-  
-  users.push(user);
-  writeUsers(users);
+};
 
-  // Tạo token
-  const token = generateToken(user);
+// ===== AUTH ROUTES =====
 
-  // Trả về user (không có password) + token
-  const { password: _p, ...userSafe } = user;
-  return res.status(201).json({ 
-    message: 'Register successful',
-    user: userSafe, 
-    token 
-  });
-});
-
-// API: Đăng nhập
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  
-  // Validation
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Missing email or password' });
-  }
-
-  const users = readUsers();
-  
-  // Tìm user với email + password
-  const user = users.find(u => u.email === email && u.password === password);
-  if (!user) {
-    return res.status(401).json({ message: 'Invalid email or password' });
-  }
-
-  // Tạo token
-  const token = generateToken(user);
-
-  // Trả về user (không có password) + token
-  const { password: _p, ...userSafe } = user;
-  return res.json({ 
-    message: 'Login successful',
-    user: userSafe, 
-    token 
-  });
-});
-
-// API: Đăng nhập với Google
-app.post('/api/auth/google', async (req, res) => {
-  const { idToken } = req.body;
-  
-  if (!idToken) {
-    return res.status(400).json({ message: 'Missing idToken' });
-  }
-
+// Register
+app.post('/api/auth/register', async (req, res) => {
   try {
-    // Xác thực idToken với Google
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-    const { email, name, picture, sub } = payload;
-
-    const users = readUsers();
-
-    // Tìm user có email từ Google
-    let user = users.find(u => u.email === email);
-
-    // Nếu user không tồn tại, tạo user mới
-    if (!user) {
-      user = {
-        id: `u_google_${sub}`,
-        fullName: name || 'Google User',
-        email,
-        phone: '',
-        password: '', // Google users không có password
-        avatar: picture || '',
-        role: 'user',
-        googleId: sub,
-      };
-      users.push(user);
-      writeUsers(users);
+    const { fullName, email, phone, password } = req.body;
+    
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ message: 'Missing fields' });
     }
 
-    // Tạo JWT token
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ message: 'Email already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = new User({
+      fullName,
+      email,
+      phone: phone || '',
+      password: hashedPassword,
+      role: 'user'
+    });
+
+    await user.save();
+
     const token = generateToken(user);
+    const safeUser = sanitizeUser(user);
 
-    // Trả về user (không có password) + token
-    const { password: _p, ...userSafe } = user;
-    return res.status(200).json({
-      message: 'Google login successful',
-      user: userSafe,
-      token,
-    });
+    res.status(201).json({ user: safeUser, token });
   } catch (error) {
-    console.error('Google token verification failed:', error);
-    return res.status(401).json({
-      message: 'Invalid or expired idToken',
-      error: error.message,
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Missing email or password' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken(user);
+    const safeUser = sanitizeUser(user);
+
+    res.json({ user: safeUser, token });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Google Login
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: 'Missing idToken' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID
     });
+
+    const { email, name, picture, sub } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      user = new User({
+        fullName: name,
+        email,
+        phone: '',
+        password: '',
+        avatar: picture,
+        googleId: sub,
+        role: 'user'
+      });
+      await user.save();
+    } else if (!user.googleId) {
+      // Update googleId if not set
+      user.googleId = sub;
+      if (!user.avatar && picture) {
+        user.avatar = picture;
+      }
+      await user.save();
+    }
+
+    const token = generateToken(user);
+    const safeUser = sanitizeUser(user);
+
+    res.json({ user: safeUser, token });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(401).json({ message: 'Invalid Google token' });
   }
 });
 
-// API: Lấy danh sách tất cả user (dùng cho admin)
-app.get('/api/users', (req, res) => {
-  const users = readUsers();
-  const safe = users.map(({ password, ...rest }) => rest);
-  res.json(safe);
-});
+// ===== ORDERS ROUTES =====
 
-// ============= ORDERS API =============
+// Create order
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { userId, items, total, shippingAddress, phone, paymentMethod } = req.body;
+    
+    console.log('Create order request:', { userId, items, total, shippingAddress, phone, paymentMethod });
 
-// API: Tạo đơn hàng
-app.post('/api/orders', (req, res) => {
-  const { userId, items, total, shippingAddress, phone, paymentMethod } = req.body;
-  
-  // Validation
-  if (!userId || !items || !total || !shippingAddress || !phone) {
-    return res.status(400).json({ message: 'Missing required fields' });
-  }
+    if (!userId || !items || !total || !shippingAddress || !phone) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
 
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'Items must be a non-empty array' });
-  }
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-  // Verify user exists
-  const users = readUsers();
-  const user = users.find(u => u.id === userId);
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-
-  // Tạo order mới
-  const order = {
-    id: `order_${Date.now()}`,
-    userId,
-    items,
-    total,
-    status: 'pending',
-    shippingAddress,
-    phone,
-    paymentMethod: paymentMethod || 'credit_card',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  const orders = readOrders();
-  orders.push(order);
-  writeOrders(orders);
-
-  return res.status(201).json({
-    message: 'Order created successfully',
-    order
-  });
-});
-
-// API: Lấy đơn hàng của user
-app.get('/api/orders/user/:userId', (req, res) => {
-  const { userId } = req.params;
-  const orders = readOrders();
-  const userOrders = orders.filter(o => o.userId === userId);
-  res.json(userOrders);
-});
-
-// API: Lấy tất cả đơn hàng (admin)
-app.get('/api/orders', (req, res) => {
-  const orders = readOrders();
-  res.json(orders);
-});
-
-// API: Lấy chi tiết một đơn hàng
-app.get('/api/orders/:orderId', (req, res) => {
-  const { orderId } = req.params;
-  const orders = readOrders();
-  const order = orders.find(o => o.id === orderId);
-  
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-  
-  res.json(order);
-});
-
-// API: Cập nhật trạng thái đơn hàng (admin)
-app.put('/api/orders/:orderId', (req, res) => {
-  const { orderId } = req.params;
-  const { status } = req.body;
-  
-  if (!status) {
-    return res.status(400).json({ message: 'Status is required' });
-  }
-
-  const orders = readOrders();
-  const order = orders.find(o => o.id === orderId);
-  
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-  
-  order.status = status;
-  order.updatedAt = new Date().toISOString();
-  writeOrders(orders);
-  
-  res.json({ message: 'Order updated successfully', order });
-});
-
-// API: Hủy đơn hàng (user)
-app.post('/api/orders/:orderId/cancel', (req, res) => {
-  const { orderId } = req.params;
-  const { userId, reason } = req.body;
-  
-  if (!userId) {
-    return res.status(400).json({ message: 'User ID is required' });
-  }
-
-  const orders = readOrders();
-  const order = orders.find(o => o.id === orderId);
-  
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-
-  // Verify user owns this order
-  if (order.userId !== userId) {
-    return res.status(403).json({ message: 'Not authorized to cancel this order' });
-  }
-
-  // Only pending/processing orders can be cancelled
-  if (!['pending', 'processing'].includes(order.status)) {
-    return res.status(400).json({ message: `Cannot cancel order with status: ${order.status}` });
-  }
-
-  order.status = 'cancelled';
-  order.cancellationReason = reason || 'User cancelled';
-  order.cancelledAt = new Date().toISOString();
-  order.updatedAt = new Date().toISOString();
-  writeOrders(orders);
-  
-  res.json({ message: 'Order cancelled successfully', order });
-});
-
-// API: Yêu cầu trả hàng (user)
-app.post('/api/orders/:orderId/return', (req, res) => {
-  const { orderId } = req.params;
-  const { userId, reason, photos } = req.body;
-  
-  if (!userId || !reason) {
-    return res.status(400).json({ message: 'User ID and reason are required' });
-  }
-
-  const orders = readOrders();
-  const order = orders.find(o => o.id === orderId);
-  
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-
-  // Verify user owns this order
-  if (order.userId !== userId) {
-    return res.status(403).json({ message: 'Not authorized to request return for this order' });
-  }
-
-  // Only completed orders can be returned
-  if (order.status !== 'completed') {
-    return res.status(400).json({ message: 'Only completed orders can be returned' });
-  }
-
-  if (!order.returnRequest) {
-    order.returnRequest = {
-      id: `return_${Date.now()}`,
-      reason,
-      photos: photos || [],
-      status: 'pending',
-      requestedAt: new Date().toISOString(),
-      notes: ''
-    };
-    order.updatedAt = new Date().toISOString();
-    writeOrders(orders);
-
-    return res.status(201).json({
-      message: 'Return request created successfully',
-      order
+    const order = new Order({
+      userId,
+      items,
+      total,
+      shippingAddress,
+      phone,
+      paymentMethod: paymentMethod || 'cod',
+      status: 'pending'
     });
-  }
 
-  // Return request already exists
-  res.status(400).json({ message: 'Return request already exists for this order' });
+    await order.save();
+    const populatedOrder = await order.populate('userId', 'fullName email');
+
+    res.status(201).json(populatedOrder);
+  } catch (error) {
+    console.error('Create order error:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
 });
 
-// Health check
+// Get all orders
+app.get('/api/orders', async (req, res) => {
+  try {
+    const orders = await Order.find().populate('userId', 'fullName email phone');
+    res.json(orders);
+  } catch (error) {
+    console.error('Get orders error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user orders
+app.get('/api/orders/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const orders = await Order.find({ userId }).populate('userId', 'fullName email phone');
+    res.json(orders);
+  } catch (error) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get order by ID
+app.get('/api/orders/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+
+    const order = await Order.findById(orderId).populate('userId', 'fullName email phone');
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('Get order error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update order status
+app.patch('/api/orders/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { status, updatedAt: new Date() },
+      { new: true }
+    ).populate('userId', 'fullName email phone');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('Update order error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Cancel order
+app.post('/api/orders/:orderId/cancel', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.status === 'cancelled') {
+      return res.status(400).json({ message: 'Order is already cancelled' });
+    }
+
+    if (['shipped', 'delivered'].includes(order.status)) {
+      return res.status(400).json({ message: 'Cannot cancel order in ' + order.status + ' status' });
+    }
+
+    order.status = 'cancelled';
+    order.updatedAt = new Date();
+    await order.save();
+
+    const populatedOrder = await order.populate('userId', 'fullName email phone');
+    res.json(populatedOrder);
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ===== HEALTH CHECK =====
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'Auth server is running', timestamp: new Date().toISOString() });
+  res.json({ status: 'OK', time: new Date().toISOString() });
 });
 
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  console.log(`\n✅ Auth Server đang chạy tại http://localhost:${port}`);
-  console.log(`📝 Đăng ký: POST http://localhost:${port}/api/auth/register`);
-  console.log(`🔐 Đăng nhập: POST http://localhost:${port}/api/auth/login`);
-  console.log(`🔓 Google OAuth: POST http://localhost:${port}/api/auth/google`);
-  console.log(`👥 Danh sách user: GET http://localhost:${port}/api/users`);
-  console.log(`\n🛒 Orders API:`);
-  console.log(`📦 Tạo đơn: POST http://localhost:${port}/api/orders`);
-  console.log(`📋 Đơn của user: GET http://localhost:${port}/api/orders/user/:userId`);
-  console.log(`📊 Tất cả đơn: GET http://localhost:${port}/api/orders`);
-  console.log(`🔍 Chi tiết đơn: GET http://localhost:${port}/api/orders/:orderId`);
-  console.log(`✏️  Cập nhật đơn: PUT http://localhost:${port}/api/orders/:orderId\n`);
+// ===== START SERVER =====
+app.listen(PORT, () => {
+  console.log(`✅ Backend running: http://localhost:${PORT}`);
 });

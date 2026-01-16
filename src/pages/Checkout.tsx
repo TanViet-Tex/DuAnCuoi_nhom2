@@ -100,7 +100,7 @@ const Checkout: React.FC = () => {
         return;
       }
 
-      const { order } = await response.json();
+      const order = await response.json();
       toast.success('Đơn hàng tạo thành công!');
 
       // Lưu vào sessionStorage để OrderSuccess page có thể hiển thị
@@ -111,7 +111,7 @@ const Checkout: React.FC = () => {
 
       // Redirect to success page
       setTimeout(() => {
-        navigate(`/order-success/${order.id}`);
+        navigate(`/order-success/${order._id}`);
       }, 1000);
     } catch (error) {
       console.error('Error creating order:', error);

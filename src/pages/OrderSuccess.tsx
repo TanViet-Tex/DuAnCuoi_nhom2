@@ -16,7 +16,8 @@ interface OrderItem {
 }
 
 interface Order {
-  id: string;
+  _id?: string;
+  id?: string;
   userId: string;
   items: OrderItem[];
   total: number;
@@ -83,7 +84,8 @@ const OrderSuccess: React.FC = () => {
     try {
       setCancelling(true);
       const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${API}/api/orders/${order.id}/cancel`, {
+      const orderId = order._id || order.id;
+      const response = await fetch(`${API}/api/orders/${orderId}/cancel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -502,11 +502,11 @@ const Profile: React.FC = () => {
                             </div>
                             {(order.status === 'pending' || order.status === 'processing') && (
                               <button
-                                onClick={() => setSelectedOrderToCancel(order.id)}
+                                onClick={() => setSelectedOrderToCancel(order._id)}
                                 className="flex items-center gap-2 border-2 border-red-500 text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg font-semibold transition"
                               >
                                 <Trash2 size={18} />
-                                Hủy đơn
+                                Hủy Đơn
                               </button>
                             )}
                           </div>
